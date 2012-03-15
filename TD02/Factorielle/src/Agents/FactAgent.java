@@ -15,6 +15,7 @@ import jade.domain.FIPAException;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
 
 
 public class FactAgent extends Agent {
@@ -27,10 +28,6 @@ public class FactAgent extends Agent {
 	 * 	step : stores the current states of the agent state machine. 
 	 * 	FA_states : declaration of the different states composing by the state machines.
 	 */
-	private int base;
-	private int temp;
-	private FA_states step;
-	private AID receiver;
 
 	public enum FA_states {
 		NOT_DEF,
@@ -39,60 +36,7 @@ public class FactAgent extends Agent {
 		WAIT_ANSWER
 	}
 	
-	/**
-	 * 
-	 * GETTERS AND SETTERS
-	 * 
-	 */
-	public int getBase(){
-		return this.base;
-	}
 	
-	public void setBase(int value){
-		this.base=value;
-	}
-	public AID getReceiver(){
-		return this.receiver;
-	}
-	
-	private void setReceiver() {
-			
-		DFAgentDescription template =
-		new DFAgentDescription();
-		ServiceDescription sd = new ServiceDescription();
-		sd.setType("Operations");
-		sd.setName("Multiplication");
-		template.addServices(sd);
-		try {
-			DFAgentDescription[] result =
-			DFService.search(this, template);
-			if (result.length > 0) {
-			receiver = result[0].getName();
-			}
-		}
-		catch(FIPAException fe) {
-			System.err.println("Error - Setting receiver : " + fe.getMessage());
-		}
-		
-	}
-	
-	public int getTemp(){
-		return this.temp;
-	}
-	
-	public void setTemp(int value){
-		this.temp=value;
-	}
-	
-	public void setStep(FA_states waitAnswer)
-	{
-		this.step= waitAnswer;
-	}
-	
-	public FA_states getStep()
-	{
-		return this.step;
-	}
 	
 	/**
 	 *  OTHER METHODS
@@ -112,12 +56,9 @@ public class FactAgent extends Agent {
 		/*advice user of agent creation*/
 		System.out.println(getLocalName()+" : Agent created.");
 		
-		/* initialize state machine*/
-			step=FA_states.WAIT_INIT;
 		
 		/*Behaviours startup*/
 			addBehaviour(new WaitMessageBehaviour());
-			addBehaviour(new OrganizeCalcBehaviour());
 
 }	
 	/**
@@ -141,68 +82,38 @@ public class FactAgent extends Agent {
 		@Override
 		public void action() {
 			
-			/*retrieve agent's internal state*/
-			FA_states state = ((FactAgent)myAgent).getStep();
+			MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.REQUEST);
 			
-			/*If waiting for messages*/
-			if ((state==FA_states.WAIT_ANSWER)||(state==FA_states.WAIT_INIT))
+			
+			ACLMessage message = myAgent.receive(mt);
+			
+			/* if incoming messages*/
+			if (message!=null)
 			{
-				/* Interrogate mail box*/
-				ACLMessage message = myAgent.receive();
+				int perforative = message.getPerformative();
+				String content = message.getContent();
 				
-				/* if incoming messages*/
-				if (message!=null)
+				/* Act in accordance with message type */
+				switch(perforative)
 				{
-					int perforative = message.getPerformative();
-					String content = message.getContent();
-					
-					/* Act in accordance with message type */
-					switch(perforative)
-					{
-					
-						/* if REQUEST message*/
-						case ACLMessage.REQUEST:
-							
-							/* advice of message received*/
-							System.out.println(myAgent.getLocalName()+" : receives the request : " + content);
-							
-							/*Initialize calculation*/
-							((FactAgent) myAgent).setBase(Integer.parseInt(content));
-							((FactAgent) myAgent).setTemp(Integer.parseInt(content));
-							
-							/*Switch to ORGANIZE_CALC state*/
-							((FactAgent) myAgent).setStep(FA_states.ORGANIZE_CALC);
-							
-							/*restart calculation behaviour*/
-							myAgent.addBehaviour(new OrganizeCalcBehaviour());
-							break;
+			
+			
+						//TODO SWITCH ETC
+					case ACLMessage.REQUEST:
 						
-						/*if INFORM message*/
-						case ACLMessage.INFORM:
-							
-							/* advice of message received*/
-							System.out.println(myAgent.getLocalName()+" : receives the message : " + content);
-							
-							/*update temp variable*/
-							((FactAgent) myAgent).setTemp(Integer.parseInt(content));
-							
-							/*Switch to ORGANIZE_CALC state*/
-							((FactAgent) myAgent).setStep(FA_states.ORGANIZE_CALC);
-							break;
-
-						default:
-							System.err.println("Error occured : " + content);
-							break;
-					}
-				} else{
-					/*if no messages wait for it*/
-						System.err.println(myAgent.getLocalName()+" : blocks waiting for message");
-					block();
-					
+						/* advice of message received*/
+						System.out.println(myAgent.getLocalName()+" : receives the request : " + content);
+						myAgent.addBehaviour(new OrganizeCalcBehaviour(content)); //PASSER EN ARGUMENT CONTENT
+						break;
+						
+					default:
+						break;
 				}
-			}
-					
+			
+			
+			
 		}
+	}
 
 		@Override
 		public boolean done() {
@@ -227,43 +138,181 @@ public class FactAgent extends Agent {
 	@SuppressWarnings("serial")
 	protected class OrganizeCalcBehaviour extends Behaviour{
 
+		private int base;
+		private int temp;
+		private FA_states step;
+		private AID receiver;
+		private String id;
+		private String currentMirt;
+		
+		public OrganizeCalcBehaviour(String content) {
+			base = Integer.parseInt(content);
+			temp = Integer.parseInt(content);
+			step=FA_states.ORGANIZE_CALC;
+			id = String.valueOf(content) + System.currentTimeMillis();
+			
+		}
+
+		/**
+		 * 
+		 * GETTERS AND SETTERS
+		 * 
+		 */
+		public int getBase(){
+			return this.base;
+		}
+		
+		public void setBase(int value){
+			this.base=value;
+		}
+		public AID getReceiver(){
+			return this.receiver;
+		}
+		
+		private void setReceiver() {
+				
+			DFAgentDescription template =
+			new DFAgentDescription();
+			ServiceDescription sd = new ServiceDescription();
+			sd.setType("Operations");
+			sd.setName("Multiplication");
+			template.addServices(sd);
+			try {
+				DFAgentDescription[] result =
+				DFService.search(myAgent, template);
+				if (result.length > 0) {
+					receiver = result[(int) Math.round(Math.random())].getName();
+				}
+			}
+			catch(FIPAException fe) {
+				System.err.println("Error - Setting receiver : " + fe.getMessage());
+			}
+			
+		}
+		
+		public int getTemp(){
+			return this.temp;
+		}
+		
+		public void setTemp(int value){
+			this.temp=value;
+		}
+		
+		public void setStep(FA_states waitAnswer)
+		{
+			this.step= waitAnswer;
+		}
+		
+		public FA_states getStep()
+		{
+			return this.step;
+		}
 		
 		@Override
 		public void action() {	
 			
+			/*-------------------------------------------------------*/
+
+			
+			/*retrieve agent's internal state*/
+			FA_states state = this.getStep();
+			
+			/*If waiting for messages*/
+			if (state==FA_states.WAIT_ANSWER)
+			{
+				
+				MessageTemplate mt = MessageTemplate.and(
+						MessageTemplate.MatchConversationId(id),
+						MessageTemplate.MatchInReplyTo(currentMirt)
+						);
+				mt.MatchPerformative(ACLMessage.INFORM);
+
+				/* Interrogate mail box*/
+				
+				//ACLMessage message = myAgent.receive();
+				ACLMessage message = myAgent.receive(mt);
+				
+				/* if incoming messages*/
+				if (message!=null)
+				{
+					int perforative = message.getPerformative();
+					String content = message.getContent();
+					
+					/* Act in accordance with message type */
+					switch(perforative)
+					{
+					
+						/* if REQUEST message*/
+
+						
+						/*if INFORM message*/
+						case ACLMessage.INFORM:
+							
+							/* advice of message received*/
+							System.out.println(myAgent.getLocalName()+" : receives the message : " + content);
+							
+							/*update temp variable*/
+							this.setTemp(Integer.parseInt(content));
+							
+							/*Switch to ORGANIZE_CALC state*/
+							this.setStep(FA_states.ORGANIZE_CALC);
+							break;
+
+						default:
+							System.err.println("Error occured : " + content);
+							break;
+					}
+				} else{
+					/*if no messages wait for it*/
+						System.err.println(myAgent.getLocalName()+" : blocks waiting for message");
+					block();
+					
+				}
+			}
+					
+
+			
 			/*if in ORGANIZE_CALC*/
-			if(((FactAgent)myAgent).getStep()==FA_states.ORGANIZE_CALC){
+			if(this.getStep()==FA_states.ORGANIZE_CALC){
 				
 			/*if base lower than 1*/
-			if (((FactAgent) myAgent).getBase()<=1){
+			if (this.getBase()<=1){
 				
 				/*return result and swith to WAIT_INIT STATE*/
-				System.out.println(myAgent.getLocalName()+" : result is :" + Integer.valueOf(((FactAgent) myAgent).getTemp()));
-				((FactAgent)myAgent).setStep(FA_states.WAIT_INIT);
+				System.out.println(myAgent.getLocalName()+" : result is :" + Integer.valueOf(this.getTemp()));
+				this.setStep(FA_states.WAIT_INIT); //TODO delete behaviour
 				
 			} else {
 					/*Decrement base*/
-					((FactAgent) myAgent).setBase(((FactAgent) myAgent).getBase()-1);
+					this.setBase(this.getBase()-1);
 					
 
 					/*Prepare multiplication request*/
 					ACLMessage multRequest = new ACLMessage(ACLMessage.REQUEST);
 					setReceiver();
-					receiver = ((FactAgent) myAgent).getReceiver();
+					receiver = this.getReceiver();
 					if (receiver != null){
 						multRequest.addReceiver(receiver);
 						
 						/*With content Temp x base*/
-						multRequest.setContent(String.valueOf(((FactAgent) myAgent).getTemp())+" x "+String.valueOf(((FactAgent) myAgent).getBase()));
+						multRequest.setContent(String.valueOf(this.getTemp())+" x "+String.valueOf(this.getBase()));
 					
 						/*Switch to WAIT_ANSWER state*/
-						((FactAgent)myAgent).setStep(FA_states.WAIT_ANSWER);
+						this.setStep(FA_states.WAIT_ANSWER);
+						
+						
+						
+						//IDENTIFIER LA REQUEST EN TANT QUE CONVERSATION
+						multRequest.setConversationId(id);
+						currentMirt = id+System.currentTimeMillis();
+						multRequest.setReplyWith(currentMirt);
+
 						
 						/*Send request*/
 						myAgent.send(multRequest);
 						
 						/*Advice user of message send*/
-							System.out.println(myAgent.getLocalName()+" : sends requests : " + String.valueOf(((FactAgent) myAgent).getTemp())+" x "+String.valueOf(((FactAgent) myAgent).getBase()));			
+							System.out.println(myAgent.getLocalName()+" : sends requests : " + String.valueOf(this.getTemp())+" x "+String.valueOf(this.getBase()));			
 
 					}
 					
@@ -281,7 +330,7 @@ public class FactAgent extends Agent {
 		/*Deactivate behavior if switched in WAIT_INIT state*/
 		public boolean done() {
 			
-			return (((FactAgent)myAgent).getStep()==FA_states.WAIT_INIT);
+			return (this.getStep()==FA_states.WAIT_INIT);
 		}
 	}
 
