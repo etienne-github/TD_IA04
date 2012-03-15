@@ -1,0 +1,142 @@
+/**
+ * 
+ * @author Etienne Girot
+ *									 Implementation of class MultAgent
+ *
+ *	Calculate multiplication.
+ */
+
+package Agents;
+
+import jade.core.AID;
+import jade.core.Agent;
+import jade.core.behaviours.Behaviour;
+import jade.domain.DFService;
+import jade.domain.FIPAException;
+import jade.domain.FIPAAgentManagement.DFAgentDescription;
+import jade.domain.FIPAAgentManagement.ServiceDescription;
+import jade.lang.acl.ACLMessage;
+
+
+public class MultAgent extends Agent {
+	
+	/**
+	 *  OTHER METHODS
+	 */
+	
+	/**
+	 * 	setup()
+	 * 	Initializes the agent and set up the behaviors.
+	 * 	.
+	 * 	
+	 */
+	protected void setup(){
+		/*Setup behaviour*/
+		addBehaviour(new GeneralMultBehaviour());
+		
+		/*advice user of creation*/
+		System.out.println(getLocalName()+" : Agent created.");
+	
+		/* Enregistrement dans les pages jaunes */
+		DFAgentDescription dfd = new DFAgentDescription();
+		dfd.setName(getAID());
+		ServiceDescription sd = new ServiceDescription();
+		sd.setType("Operations");
+		sd.setName("Multiplication");
+		dfd.addServices(sd);
+		try {
+			DFService.register(this, dfd);
+		}
+		catch (FIPAException fe) {
+			fe.printStackTrace();
+		}
+	}
+
+
+	/**
+	 * 
+	 * BEHAVIOUR METHODS
+	 *
+	 */
+	
+	/**
+	 * 
+	 * 	GeneralMultBehaviour
+	 * 
+	 * 	If incoming message, answer it
+	 * 	Otherwise wait for it.
+	 * 
+	 */
+
+	
+	
+	protected class GeneralMultBehaviour extends Behaviour{
+
+		@Override
+		public void action() {
+			
+			/*Check mail box*/
+			ACLMessage message = myAgent.receive();
+			
+			/*if incoming message*/
+			if (message != null)
+			{
+				/*answer it*/
+				answer(message);
+			} else {
+				
+				/*Otherwise wait for it*/
+				block();
+			}
+		}
+
+		/*Answer a multiplication request*/
+		private void answer(ACLMessage message) {
+
+			/*Get message content and prepare reply*/
+			String msgContent = message.getContent();
+			ACLMessage reply = message.createReply();
+			
+			/*if multiplication request*/
+			if (msgContent.contains("x"))
+			{
+				/*advice user of multiplication request, received*/
+				System.out.println(myAgent.getLocalName()+" : received request : " + msgContent);
+				
+				/*retrieve operands from message "A x B" and set reply content to A*B */
+				String[] parameters = msgContent.split("x");
+				int result = Integer.parseInt(parameters[0].trim()) * Integer.parseInt(parameters[1].trim());
+				reply.setPerformative(ACLMessage.INFORM);
+				reply.setContent(String.valueOf(result));
+				
+				
+					System.out.println(myAgent.getLocalName()+" : answers " + String.valueOf(result));
+				
+			/*if not multiplication request*/	
+			} else {
+				reply.setPerformative(ACLMessage.FAILURE);
+				reply.setContent("Unknown operator");
+			}
+			/*Wait a moment... */
+			int lower = 5000;
+			int higher = 100000;
+			long delay=(long) Math.random() * (higher-lower) + lower;
+			try {
+				Thread.sleep(delay);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			/*Send reply*/
+			myAgent.send(reply);
+			
+		}
+
+		@Override
+		public boolean done() {
+			// TODO Auto-generated method stub
+			return false;
+		}
+		
+	}
+}
