@@ -7,6 +7,9 @@
  */
 package Agents;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.Behaviour;
@@ -52,9 +55,10 @@ public class FactAgent extends Agent {
 		
 		/* retrieve arguments*/
 		Object[] args = getArguments();
-		
 		/*advice user of agent creation*/
-		System.out.println(getLocalName()+" : Agent created.");
+		System.out.println(getLocalName()+" : Agent created with initial request "+(String)args[0]+"!.");
+		this.addBehaviour(new OrganizeCalcBehaviour((String)args[0]));
+
 		
 		
 		/*Behaviours startup*/
@@ -102,8 +106,8 @@ public class FactAgent extends Agent {
 					case ACLMessage.REQUEST:
 						
 						/* advice of message received*/
-						System.out.println(myAgent.getLocalName()+" : receives the request : " + content);
-						myAgent.addBehaviour(new OrganizeCalcBehaviour(content)); //PASSER EN ARGUMENT CONTENT
+						System.out.println(myAgent.getLocalName()+" : receives the request  " + content+"!.");
+						myAgent.addBehaviour(new OrganizeCalcBehaviour(content));
 						break;
 						
 					default:
@@ -138,18 +142,21 @@ public class FactAgent extends Agent {
 	@SuppressWarnings("serial")
 	protected class OrganizeCalcBehaviour extends Behaviour{
 
+		private int req;
 		private int base;
 		private int temp;
 		private FA_states step;
 		private AID receiver;
 		private String id;
 		private String currentMirt;
-		
+		private JSONObject jO;
 		public OrganizeCalcBehaviour(String content) {
+			req = Integer.parseInt(content);
 			base = Integer.parseInt(content);
 			temp = Integer.parseInt(content);
 			step=FA_states.ORGANIZE_CALC;
 			id = String.valueOf(content) + System.currentTimeMillis();
+			
 			
 		}
 
@@ -249,7 +256,7 @@ public class FactAgent extends Agent {
 						case ACLMessage.INFORM:
 							
 							/* advice of message received*/
-							System.out.println(myAgent.getLocalName()+" : receives the message : " + content);
+							System.out.println(myAgent.getLocalName()+" : receives from "+message.getSender().getLocalName()+ " the answer \"" + content+"\".");
 							
 							/*update temp variable*/
 							this.setTemp(Integer.parseInt(content));
@@ -259,12 +266,11 @@ public class FactAgent extends Agent {
 							break;
 
 						default:
-							System.err.println("Error occured : " + content);
+							System.err.println(myAgent.getLocalName()+" : Error occured : " + content);
 							break;
 					}
 				} else{
 					/*if no messages wait for it*/
-						System.err.println(myAgent.getLocalName()+" : blocks waiting for message");
 					block();
 					
 				}
@@ -279,7 +285,7 @@ public class FactAgent extends Agent {
 			if (this.getBase()<=1){
 				
 				/*return result and swith to WAIT_INIT STATE*/
-				System.out.println(myAgent.getLocalName()+" : result is :" + Integer.valueOf(this.getTemp()));
+				System.out.println(myAgent.getLocalName()+" : result of "+ String.valueOf(req) +"! is " + Integer.valueOf(this.getTemp())+".");
 				this.setStep(FA_states.WAIT_INIT); //TODO delete behaviour
 				
 			} else {
@@ -295,7 +301,22 @@ public class FactAgent extends Agent {
 						multRequest.addReceiver(receiver);
 						
 						/*With content Temp x base*/
-						multRequest.setContent(String.valueOf(this.getTemp())+" x "+String.valueOf(this.getBase()));
+						
+						//JSON
+						try {
+							jO = new JSONObject();
+							jO.put("operande1", this.getTemp());
+							jO.put("operande2", this.getBase());
+							multRequest.setContent(jO.toString());
+						} catch (JSONException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						
+						
+						
+						//WITHOUT JSON
+						//multRequest.setContent(String.valueOf(this.getTemp())+" x "+String.valueOf(this.getBase()));
 					
 						/*Switch to WAIT_ANSWER state*/
 						this.setStep(FA_states.WAIT_ANSWER);
@@ -312,7 +333,7 @@ public class FactAgent extends Agent {
 						myAgent.send(multRequest);
 						
 						/*Advice user of message send*/
-							System.out.println(myAgent.getLocalName()+" : sends requests : " + String.valueOf(this.getTemp())+" x "+String.valueOf(this.getBase()));			
+							System.out.println(myAgent.getLocalName()+" : sends requests \"" + String.valueOf(this.getTemp())+" x "+String.valueOf(this.getBase())+"\" to "+receiver.getLocalName()+" for calculation of "+String.valueOf(req)+"!.");			
 
 					}
 					

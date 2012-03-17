@@ -8,6 +8,9 @@
 
 package Agents;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.Behaviour;
@@ -90,7 +93,7 @@ public class MultAgent extends Agent {
 				int lower = 5000;
 				int higher = 100000;
 				long delay=(long) Math.random() * (higher-lower) + lower;
-				System.out.println(myAgent.getLocalName()+" : received request : " + message.getContent());
+				//System.out.println(myAgent.getLocalName()+" : received request : " + message.getContent());
 				myAgent.addBehaviour(new CalculateMultBehaviour (myAgent,delay,message));
 			} else {
 				
@@ -112,6 +115,7 @@ public class MultAgent extends Agent {
 	protected class CalculateMultBehaviour extends WakerBehaviour{
 
 		private ACLMessage pendingMessage;
+		JSONObject buffer;
 		public CalculateMultBehaviour(Agent a, long timeout,ACLMessage pendingMessage) {
 			super(a, timeout);
 			this.pendingMessage=pendingMessage;
@@ -136,12 +140,27 @@ public class MultAgent extends Agent {
 			String msgContent = message.getContent();
 			ACLMessage reply = message.createReply();
 			
+			
+			//WITH JSON
+			try {
+				buffer = new JSONObject(msgContent);
+				int result = buffer.getInt("operande1") *buffer.getInt("operande2");
+				reply.setPerformative(ACLMessage.INFORM);
+				reply.setContent(String.valueOf(result));
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			
+			
+			//WITHOUT JSON
 			/*if multiplication request*/
-			if (msgContent.contains("x"))
+			/*if (msgContent.contains("x"))
 			{
 
 				
-				/*retrieve operands from message "A x B" and set reply content to A*B */
+				//retrieve operands from message "A x B" and set reply content to A*B 
 				String[] parameters = msgContent.split("x");
 				int result = Integer.parseInt(parameters[0].trim()) * Integer.parseInt(parameters[1].trim());
 				reply.setPerformative(ACLMessage.INFORM);
@@ -150,12 +169,12 @@ public class MultAgent extends Agent {
 				
 					System.out.println(myAgent.getLocalName()+" : answers " + String.valueOf(result));
 				
-			/*if not multiplication request*/	
+			//if not multiplication request
 			} else {
 				
 				reply.setPerformative(ACLMessage.FAILURE);
 				reply.setContent("Unknown operator");
-			}
+			}*/
 			
 				myAgent.send(reply);
 

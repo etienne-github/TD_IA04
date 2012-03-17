@@ -42,7 +42,13 @@ public class MainContainer {
 					}
 					
 					try {
-						AgentController MC_FactAgent = MC_MainContainer.createNewAgent("FactAgent","Agents.FactAgent",new String[]{"5"});
+						
+						int lower = 5;
+						int higher = 10;
+						double fact=  Math.random() * (higher-lower) + lower;
+						
+						
+						AgentController MC_FactAgent = MC_MainContainer.createNewAgent("FactAgent","Agents.FactAgent",new String[]{String.valueOf(Math.round(fact))});
 						MC_FactAgent.start();
 					} catch (Exception eFactAgent){
 						System.err.println("Error - FactAgent creation : " + eFactAgent.getMessage());
